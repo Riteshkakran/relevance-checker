@@ -1,5 +1,3 @@
-const BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-
 export async function analyze({ mode, url, file, keywords }) {
   const form = new FormData();
   form.append("keywords", keywords);
@@ -8,7 +6,7 @@ export async function analyze({ mode, url, file, keywords }) {
 
   let res;
   try {
-    res = await fetch(`${BASE}/api/analyze`, { method: "POST", body: form });
+    res = await fetch("/api/analyze", { method: "POST", body: form });
   } catch {
     throw new Error(
       "Can't reach the server. If it was idle it may be waking up. Wait a minute and try again."

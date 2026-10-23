@@ -1,8 +1,10 @@
 import os
 import re
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from crawler import crawl, is_safe_url, MAX_BYTES
 from extractor import SUPPORTED_EXTS
@@ -23,7 +25,7 @@ app.add_middleware(
 
 def parse_keywords(raw: str) -> list[str]:
     items = [k.strip() for k in re.split(r"[,\n]", raw)]
-    return list(dict.fromkeys(k for k in items if k))      # unique, non-empty
+    return list(dict.fromkeys(k for k in items if k))
 
 
 @app.get("/api/health")
@@ -31,7 +33,6 @@ def health():
     return {"ok": True}
 
 
-# Plain `def` (not async) so FastAPI runs the blocking crawl in a worker thread.
 @app.post("/api/analyze")
 def analyze_endpoint(
     keywords: str = Form(...),
@@ -65,3 +66,10 @@ def analyze_endpoint(
         msg = nodes[0]["error"] if nodes and nodes[0]["error"] else "No readable text found."
         raise HTTPException(422, msg)
     return analyze(nodes, kws)
+
+
+# Serve the built React app. Keep this at the very END of the file,
+# after all /api routes, so it never hides them.
+DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if DIST.is_dir():
+    app.mount("/", StaticFiles(directory=DIST, html=True), name="web")
