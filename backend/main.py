@@ -1,17 +1,21 @@
+import os
 import re
+
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-import os
 from crawler import crawl, is_safe_url, MAX_BYTES
 from extractor import SUPPORTED_EXTS
 from scorer import analyze
 
 app = FastAPI(title="Relevance Checker")
+
+origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+origins += [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=["http://localhost:5173"],
-    allow_origins=[o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",") if o.strip()],
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -38,12 +42,16 @@ def analyze_endpoint(
     if not kws:
         raise HTTPException(400, "Enter at least one keyword.")
     if not url and not file:
-        raise HTTPException(400, "Upload a PDF or enter a URL.")
+        raise HTTPException(400, "Upload a file or enter a URL.")
 
     if file:
         name = file.filename or "uploaded file"
         if os.path.splitext(name)[1].lower() not in SUPPORTED_EXTS:
-            raise HTTPException(400, "Unsupported file type. Use PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx), HTML, TXT, MD, CSV or JSON.")
+            raise HTTPException(
+                400,
+                "Unsupported file type. Use PDF, Word (.docx), PowerPoint (.pptx), "
+                "Excel (.xlsx), HTML, TXT, MD, CSV or JSON.",
+            )
         data = file.file.read()
         if len(data) > MAX_BYTES:
             raise HTTPException(400, "File is larger than 25 MB.")
